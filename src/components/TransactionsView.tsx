@@ -13,6 +13,7 @@ import { formatCurrency, toPersianDigits } from "@/lib/banks";
 import { formatToJalali, formatJalaliFull } from "@/lib/date";
 import { useToast } from "@/context/ToastContext";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -48,6 +49,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 }) => {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const { formatAmount } = useCurrency();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income">("all");
@@ -96,9 +98,9 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const handleDelete = async (tx: CardTransaction) => {
     const ok = await confirm({
       title: "حذف تراکنش",
-      message: `آیا از حذف تراکنش «${tx.title}» به مبلغ ${formatCurrency(
+      message: `آیا از حذف تراکنش «${tx.title}» به مبلغ ${formatAmount(
         tx.amount
-      )} تومان اطمینان دارید؟ در صورت حذف، موجودی کارت بانکی به حالت قبل برمی‌گردد.`,
+      )} اطمینان دارید؟ در صورت حذف، موجودی کارت بانکی به حالت قبل برمی‌گردد.`,
       confirmText: "بله، حذف شود",
       isDanger: true,
     });
@@ -169,7 +171,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             </span>
           </div>
           <div className="text-lg sm:text-xl font-bold font-mono text-white mt-1">
-            {showSensitive ? `${formatCurrency(totalBalance)} تومان` : "••••••••"}
+            {showSensitive ? formatAmount(totalBalance) : "••••••••"}
           </div>
         </div>
 
@@ -185,7 +187,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             </span>
           </div>
           <div className="text-lg sm:text-xl font-bold font-mono text-emerald-300 mt-1">
-            {showSensitive ? `+ ${formatCurrency(totalIncome)} تومان` : "••••••••"}
+            {showSensitive ? `+ ${formatAmount(totalIncome)}` : "••••••••"}
           </div>
         </div>
 
@@ -201,7 +203,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             </span>
           </div>
           <div className="text-lg sm:text-xl font-bold font-mono text-rose-300 mt-1">
-            {showSensitive ? `- ${formatCurrency(totalExpense)} تومان` : "••••••••"}
+            {showSensitive ? `- ${formatAmount(totalExpense)}` : "••••••••"}
           </div>
         </div>
       </div>
@@ -383,10 +385,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                         isExpense ? "text-rose-400" : "text-emerald-400"
                       }`}
                     >
-                      {isExpense ? "-" : "+"} {formatCurrency(tx.amount)}
-                    </span>
-                    <span className="text-[10px] text-slate-500 block text-right dir-rtl">
-                      تومان
+                      {isExpense ? "-" : "+"} {formatAmount(tx.amount)}
                     </span>
                   </div>
 

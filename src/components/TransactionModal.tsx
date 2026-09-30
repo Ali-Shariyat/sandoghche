@@ -10,6 +10,8 @@ import {
 } from "@/lib/db";
 import { formatCurrency, toEnglishDigits, toPersianDigits, formatCardNumber } from "@/lib/banks";
 import { useToast } from "@/context/ToastContext";
+import { useCurrency, CurrencyUnit } from "@/context/CurrencyContext";
+import { CurrencyInputField } from "@/components/ui/CurrencyInputField";
 import { AppDrawer } from "@/components/ui/AppDrawer";
 import {
   ArrowDownLeft,
@@ -80,6 +82,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   onSaved,
 }) => {
   const { showToast } = useToast();
+  const { currencyUnit, toTomans, formatAmount } = useCurrency();
 
   const [mode, setMode] = useState<"expense" | "income" | "transfer">(defaultType);
   const [cardId, setCardId] = useState<number | undefined>(defaultCardId || cardsList[0]?.id);
@@ -87,6 +90,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     cardsList.find((c) => c.id !== (defaultCardId || cardsList[0]?.id))?.id
   );
   const [amountStr, setAmountStr] = useState("");
+  const [inputUnit, setInputUnit] = useState<CurrencyUnit>(currencyUnit);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<CardTransaction["category"]>("food");
   const [personId, setPersonId] = useState<number | undefined>();
@@ -100,12 +104,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setCardId(initialCardId);
       setTargetCardId(cardsList.find((c) => c.id !== initialCardId)?.id);
       setAmountStr("");
+      setInputUnit(currencyUnit);
       setTitle("");
       setCategory(defaultType === "income" ? "salary" : "food");
       setPersonId(undefined);
       setNote("");
     }
-  }, [isOpen, defaultType, defaultCardId, cardsList]);
+  }, [isOpen, defaultType, defaultCardId, cardsList, currencyUnit]);
 
   if (!isOpen) return null;
 
@@ -130,7 +135,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       showToast("لطفاً کارت بانکی را انتخاب کنید", "error");
       return;
     }
-    if (numericAmount <= 0) {
+    const numericAmountInTomans = toTomans(numericAmount, inputUnit);
+    if (numericAmountInTomans <= 0) {
       showToast("مبلغ تراکنش باید بیشتر از صفر باشد", "error");
       return;
     }
@@ -146,12 +152,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         await transferBetweenCards(
           cardId,
           targetCardId,
-          numericAmount,
+          numericAmountInTomans,
           title.trim() || "انتقال بین کارت‌ها",
           note.trim() || undefined
         );
         showToast(
-          `مبلغ ${formatCurrency(numericAmount)} تومان بین کارت‌ها منتقل شد`,
+          `مبلغ ${formatAmount(numericAmountInTomans)} بین کارت‌ها منتقل شد`,
           "success"
         );
       } else {
@@ -164,7 +170,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         await addCardTransaction(
           cardId,
           mode,
-          numericAmount,
+          numericAmountInTomans,
           title.trim(),
           category,
           note.trim() || undefined,
@@ -174,8 +180,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
         showToast(
           mode === "expense"
-            ? `مبلغ ${formatCurrency(numericAmount)} تومان با عنوان «${title}» از کارت کسر شد`
-            : `مبلغ ${formatCurrency(numericAmount)} تومان با عنوان «${title}» به کارت واریز شد`,
+            ? `مبلغ ${formatAmount(numericAmountInTomans)} با عنوان «${title}» از کارت کسر شد`
+            : `مبلغ ${formatAmount(numericAmountInTomans)} با عنوان «${title}» به کارت واریز شد`,
           "success"
         );
       }
@@ -284,7 +290,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               >
                 {cardsList.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.bankName} - {c.title} (موجودی: {formatCurrency(c.balance || 0)} ت)
+                    {c.bankName} - {c.title} (موجودی: {formatAmount(c.balance || 0)})
                   </option>
                 ))}
               </select>
@@ -303,7 +309,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   .filter((c) => c.id !== cardId)
                   .map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.bankName} - {c.title} (موجودی: {formatCurrency(c.balance || 0)} ت)
+                      {c.bankName} - {c.title} (موجودی: {formatAmount(c.balance || 0)})
                     </option>
                   ))}
               </select>
@@ -319,9 +325,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 <span className="text-[11px] text-slate-400 font-mono">
                   موجودی فعلی:{" "}
                   <strong className="text-white">
-                    {formatCurrency(selectedCard.balance || 0)}
-                  </strong>{" "}
-                  تومان
+                    {formatAmount(selectedCard.balance || 0)}
+                  </strong>
                 </span>
               )}
             </div>
@@ -337,7 +342,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               ) : (
                 cardsList.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.bankName} - {c.title} (موجودی: {formatCurrency(c.balance || 0)} تومان)
+                    {c.bankName} - {c.title} (موجودی: {formatAmount(c.balance || 0)})
                   </option>
                 ))
               )}
@@ -345,51 +350,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           </div>
         )}
 
-        {/* Amount Input with Live Toman Formatting */}
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs font-semibold text-slate-300">
-              مبلغ تراکنش (تومان) *
-            </label>
-            {numericAmount > 0 && (
-              <span className="text-xs font-bold font-mono text-emerald-400">
-                {formatCurrency(numericAmount)} تومان
-              </span>
-            )}
-          </div>
-
-          <div className="relative">
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="مثلاً: ۲۵,۰۰۰"
-              value={amountStr ? toPersianDigits(formatCurrency(numericAmount)) : ""}
-              onChange={(e) => {
-                const raw = toEnglishDigits(e.target.value).replace(/\D/g, "");
-                setAmountStr(raw);
-              }}
-              required
-              className="w-full pl-12 pr-4 py-3 rounded-2xl bg-slate-800/90 border border-slate-700 text-white text-lg font-bold font-mono focus:outline-none focus:border-blue-500"
-            />
-            <span className="absolute left-4 top-3.5 text-xs text-slate-400 font-medium">
-              تومان
-            </span>
-          </div>
-
-          {/* Quick amount addition pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mt-2 no-scrollbar">
-            {QUICK_AMOUNTS.map((amt) => (
-              <button
-                key={amt}
-                type="button"
-                onClick={() => handleAddQuickAmount(amt)}
-                className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-[10px] font-mono text-slate-300 shrink-0 active:scale-95 transition-all"
-              >
-                +{toPersianDigits(formatCurrency(amt))}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Amount Input with Toman/Rial switcher */}
+        <CurrencyInputField
+          label="مبلغ تراکنش"
+          value={amountStr}
+          onChange={setAmountStr}
+          unit={inputUnit}
+          onUnitChange={setInputUnit}
+          placeholder="مثلاً: ۲۵,۰۰۰"
+          required
+          quickAmounts={QUICK_AMOUNTS}
+        />
 
         {/* Title Input & Quick Suggestions */}
         {mode !== "transfer" && (

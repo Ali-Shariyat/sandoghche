@@ -11,6 +11,7 @@ import {
   BankInfo,
 } from "@/lib/banks";
 import { useToast } from "@/context/ToastContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import {
   Copy,
   CreditCard,
@@ -43,6 +44,7 @@ export const BankCardVisual: React.FC<BankCardVisualProps> = ({
   compact = false,
 }) => {
   const { showToast } = useToast();
+  const { formatAmount } = useCurrency();
   const [showSensitive, setShowSensitive] = useState(false);
   const [copiedType, setCopiedType] = useState<"card" | "shaba" | null>(null);
 
@@ -239,7 +241,7 @@ export const BankCardVisual: React.FC<BankCardVisualProps> = ({
             <span className="text-[10px] text-white/80 font-light">موجودی:</span>
             <span className="font-mono font-bold text-xs sm:text-sm text-white drop-shadow truncate">
               {showSensitive
-                ? `${formatCurrency(card.balance !== undefined ? card.balance : 0)} تومان`
+                ? formatAmount(card.balance !== undefined ? card.balance : 0)
                 : "••••••••"}
             </span>
           </div>

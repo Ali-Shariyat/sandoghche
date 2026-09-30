@@ -3,6 +3,7 @@ import { Vazirmatn } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/context/ToastContext";
 import { ConfirmProvider } from "@/context/ConfirmContext";
+import { CurrencyProvider } from "@/context/CurrencyContext";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic", "latin"],
@@ -36,7 +37,9 @@ export default function RootLayout({
     <html lang="fa" dir="rtl" className={`${vazirmatn.variable} dark`}>
       <body className="min-h-screen w-full flex flex-col bg-slate-950 text-slate-100 font-sans antialiased selection:bg-blue-600 selection:text-white pb-safe overflow-x-hidden">
         <ToastProvider>
-          <ConfirmProvider>{children}</ConfirmProvider>
+          <ConfirmProvider>
+            <CurrencyProvider>{children}</CurrencyProvider>
+          </ConfirmProvider>
         </ToastProvider>
       </body>
     </html>

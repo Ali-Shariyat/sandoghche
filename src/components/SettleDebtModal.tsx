@@ -4,13 +4,14 @@ import React, { useState, useEffect } from "react";
 import { DebtItem, BankCard, Person, db, settleDebtWithCard } from "@/lib/db";
 import { formatCurrency, toEnglishDigits } from "@/lib/banks";
 import { useToast } from "@/context/ToastContext";
+import { useCurrency, CurrencyUnit } from "@/context/CurrencyContext";
+import { CurrencyInputField } from "@/components/ui/CurrencyInputField";
 import { AppDrawer } from "@/components/ui/AppDrawer";
 import {
   ArrowDownLeft,
   ArrowUpRight,
   CheckCircle2,
   RotateCcw,
-  DollarSign,
   FileText,
   Wallet,
 } from "lucide-react";
@@ -33,21 +34,25 @@ export const SettleDebtModal: React.FC<SettleDebtModalProps> = ({
   onSettled,
 }) => {
   const { showToast } = useToast();
+  const { currencyUnit, toTomans, formatAmount } = useCurrency();
 
   const [settleAmountStr, setSettleAmountStr] = useState("");
+  const [inputUnit, setInputUnit] = useState<CurrencyUnit>(currencyUnit);
   const [syncWithCard, setSyncWithCard] = useState(true);
   const [selectedCardId, setSelectedCardId] = useState<number | undefined>();
   const [settleNote, setSettleNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    setInputUnit(currencyUnit);
     if (debt) {
-      setSettleAmountStr(debt.amount.toString());
+      const disp = currencyUnit === "rial" ? debt.amount * 10 : debt.amount;
+      setSettleAmountStr(disp.toString());
       setSyncWithCard(cardsList.length > 0);
       setSelectedCardId(debt.linkedCardId || cardsList[0]?.id);
       setSettleNote("");
     }
-  }, [debt, cardsList]);
+  }, [debt, cardsList, currencyUnit]);
 
   if (!debt || !isOpen) return null;
 
@@ -56,15 +61,16 @@ export const SettleDebtModal: React.FC<SettleDebtModalProps> = ({
   const isCreditor = debt.type === "creditor";
 
   const numericAmount = parseFloat(toEnglishDigits(settleAmountStr).replace(/\D/g, "")) || 0;
-  const isPartial = numericAmount > 0 && numericAmount < debt.amount;
+  const numericAmountInTomans = toTomans(numericAmount, inputUnit);
+  const isPartial = numericAmountInTomans > 0 && numericAmountInTomans < debt.amount;
   const selectedCard = cardsList.find((c) => c.id === selectedCardId);
 
   const handleSettle = async () => {
-    if (numericAmount <= 0) {
+    if (numericAmountInTomans <= 0) {
       showToast("مبلغ تسویه باید بیشتر از صفر باشد", "error");
       return;
     }
-    if (numericAmount > debt.amount) {
+    if (numericAmountInTomans > debt.amount) {
       showToast("مبلغ تسویه نمی‌تواند بیشتر از کل طلب/بدهی باشد", "error");
       return;
     }
@@ -76,23 +82,23 @@ export const SettleDebtModal: React.FC<SettleDebtModalProps> = ({
         await settleDebtWithCard(
           debt.id!,
           selectedCardId,
-          numericAmount,
+          numericAmountInTomans,
           settleNote.trim() || undefined
         );
         showToast(
           isCreditor
-            ? `مبلغ ${formatCurrency(numericAmount)} تومان به کارت ${selectedCard?.bankName || ""} واریز و طلب تسویه شد`
-            : `مبلغ ${formatCurrency(numericAmount)} تومان از کارت ${selectedCard?.bankName || ""} کسر و بدهی پرداخت شد`,
+            ? `مبلغ ${formatAmount(numericAmountInTomans)} به کارت ${selectedCard?.bankName || ""} واریز و طلب تسویه شد`
+            : `مبلغ ${formatAmount(numericAmountInTomans)} از کارت ${selectedCard?.bankName || ""} کسر و بدهی پرداخت شد`,
           "success"
         );
       } else {
         // Direct settlement without card balance change
         if (isPartial) {
           await db.debts.update(debt.id!, {
-            amount: debt.amount - numericAmount,
+            amount: debt.amount - numericAmountInTomans,
           });
           showToast(
-            `مبلغ ${formatCurrency(numericAmount)} تومان تسویه شد (باقیمانده: ${formatCurrency(debt.amount - numericAmount)} تومان)`,
+            `مبلغ ${formatAmount(numericAmountInTomans)} تسویه شد (باقیمانده: ${formatAmount(debt.amount - numericAmountInTomans)})`,
             "success"
           );
         } else {
@@ -168,7 +174,7 @@ export const SettleDebtModal: React.FC<SettleDebtModalProps> = ({
           <div className="flex items-center justify-between pt-2 border-t border-slate-800">
             <span className="text-xs text-slate-400">کل مبلغ طلب / بدهی:</span>
             <span className="text-base font-bold font-mono text-white">
-              {formatCurrency(debt.amount)} تومان
+              {formatAmount(debt.amount)}
             </span>
           </div>
 
@@ -200,42 +206,38 @@ export const SettleDebtModal: React.FC<SettleDebtModalProps> = ({
         ) : (
           /* Settlement Form */
           <div className="space-y-4">
-            {/* Settle Amount */}
+            {/* Settle Amount with Toman/Rial switcher */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5 text-blue-400" />
-                  مبلغ تسویه (تومان)
-                </label>
-                {numericAmount > 0 && (
-                  <span className="text-xs font-bold text-blue-400 font-mono">
-                    {formatCurrency(numericAmount)} تومان
-                  </span>
-                )}
-              </div>
-
-              <input
-                type="text"
-                inputMode="numeric"
-                value={settleAmountStr ? formatCurrency(parseFloat(toEnglishDigits(settleAmountStr).replace(/\D/g, "")) || 0) : ""}
-                onChange={(e) => setSettleAmountStr(e.target.value)}
+              <CurrencyInputField
+                label="مبلغ تسویه"
+                value={settleAmountStr}
+                onChange={setSettleAmountStr}
+                unit={inputUnit}
+                onUnitChange={setInputUnit}
                 placeholder="مبلغ پرداختی یا دریافتی..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-mono text-white text-left placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                required
               />
 
               {/* Quick settlement chips */}
               <div className="flex items-center gap-2 mt-2">
                 <button
                   type="button"
-                  onClick={() => setSettleAmountStr(debt.amount.toString())}
+                  onClick={() => {
+                    const disp = inputUnit === "rial" ? debt.amount * 10 : debt.amount;
+                    setSettleAmountStr(disp.toString());
+                  }}
                   className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 text-[11px] font-medium border border-blue-500/20 transition-colors"
                 >
-                  کل طلب ({formatCurrency(debt.amount)})
+                  کل طلب ({formatAmount(debt.amount)})
                 </button>
                 {debt.amount > 10000 && (
                   <button
                     type="button"
-                    onClick={() => setSettleAmountStr(Math.round(debt.amount / 2).toString())}
+                    onClick={() => {
+                      const half = Math.round(debt.amount / 2);
+                      const disp = inputUnit === "rial" ? half * 10 : half;
+                      setSettleAmountStr(disp.toString());
+                    }}
                     className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px] font-medium transition-colors"
                   >
                     نصف مبلغ (۵۰٪)
@@ -279,7 +281,7 @@ export const SettleDebtModal: React.FC<SettleDebtModalProps> = ({
                     >
                       {cardsList.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.bankName} - {c.title} (موجودی: {formatCurrency(c.balance || 0)} تومان)
+                          {c.bankName} - {c.title} (موجودی: {formatAmount(c.balance || 0)})
                         </option>
                       ))}
                     </select>
@@ -288,12 +290,11 @@ export const SettleDebtModal: React.FC<SettleDebtModalProps> = ({
                       <div className="flex items-center justify-between text-[11px] px-2 py-1.5 rounded-lg bg-slate-950/60 text-slate-300">
                         <span>موجودی پس از تسویه:</span>
                         <span className="font-bold font-mono text-emerald-400">
-                          {formatCurrency(
+                          {formatAmount(
                             isCreditor
-                              ? (selectedCard.balance || 0) + numericAmount
-                              : (selectedCard.balance || 0) - numericAmount
-                          )}{" "}
-                          تومان
+                              ? (selectedCard.balance || 0) + numericAmountInTomans
+                              : (selectedCard.balance || 0) - numericAmountInTomans
+                          )}
                         </span>
                       </div>
                     )}
@@ -322,7 +323,7 @@ export const SettleDebtModal: React.FC<SettleDebtModalProps> = ({
               <button
                 type="button"
                 onClick={handleSettle}
-                disabled={isSubmitting || numericAmount <= 0}
+                disabled={isSubmitting || numericAmountInTomans <= 0}
                 className={`w-full py-3 rounded-2xl text-xs font-bold text-white shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 ${
                   isCreditor
                     ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20"
@@ -330,7 +331,11 @@ export const SettleDebtModal: React.FC<SettleDebtModalProps> = ({
                 } disabled:opacity-50`}
               >
                 <CheckCircle2 className="w-4 h-4" />
-                {isSubmitting ? "در حال ثبت..." : isPartial ? `ثبت تسویه بخشی (${formatCurrency(numericAmount)} تومان)` : "تایید و ثبت تسویه کامل"}
+                {isSubmitting
+                  ? "در حال ثبت..."
+                  : isPartial
+                  ? `ثبت تسویه بخشی (${formatAmount(numericAmountInTomans)})`
+                  : "تایید و ثبت تسویه کامل"}
               </button>
             </div>
           </div>

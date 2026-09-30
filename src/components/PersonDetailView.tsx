@@ -7,6 +7,7 @@ import { formatToJalali } from "@/lib/date";
 import { BankCardVisual } from "./BankCardVisual";
 import { useToast } from "@/context/ToastContext";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import {
   X,
   User,
@@ -63,6 +64,7 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
 }) => {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const { formatAmount } = useCurrency();
   const [activeTab, setActiveTab] = useState<"cards" | "docs" | "debts" | "notes">("cards");
 
   const copyText = (text?: string, label = "متن") => {
@@ -249,8 +251,8 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
                     : "text-slate-300"
                 }`}
               >
-                {netBalance > 0 && `طلبکارید: ${formatCurrency(netBalance)} تومان`}
-                {netBalance < 0 && `بدهکارید: ${formatCurrency(Math.abs(netBalance))} تومان`}
+                {netBalance > 0 && `طلبکارید: ${formatAmount(netBalance)}`}
+                {netBalance < 0 && `بدهکارید: ${formatAmount(Math.abs(netBalance))}`}
                 {netBalance === 0 && "تسویه شده"}
               </span>
             </div>
@@ -446,7 +448,7 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
                           debt.type === "creditor" ? "text-emerald-400" : "text-rose-400"
                         }`}
                       >
-                        {formatCurrency(debt.amount)} تومان
+                        {formatAmount(debt.amount)}
                       </div>
                       <span
                         className={`text-[10px] px-2 py-0.5 rounded-full inline-block mt-1 ${

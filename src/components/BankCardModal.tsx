@@ -12,6 +12,8 @@ import {
   IRANIAN_BANKS,
 } from "@/lib/banks";
 import { useToast } from "@/context/ToastContext";
+import { useCurrency, CurrencyUnit } from "@/context/CurrencyContext";
+import { CurrencyInputField } from "@/components/ui/CurrencyInputField";
 import { AppDrawer } from "@/components/ui/AppDrawer";
 import { CreditCard, Sparkles, Tag, Check, Calendar } from "lucide-react";
 
@@ -33,6 +35,7 @@ export const BankCardModal: React.FC<BankCardModalProps> = ({
   defaultPersonId,
 }) => {
   const { showToast } = useToast();
+  const { currencyUnit, toTomans } = useCurrency();
 
   const [title, setTitle] = useState("");
   const [cardNumber, setCardNumber] = useState("");
@@ -42,6 +45,7 @@ export const BankCardModal: React.FC<BankCardModalProps> = ({
   const [expireMonth, setExpireMonth] = useState("");
   const [expireYear, setExpireYear] = useState("");
   const [balanceStr, setBalanceStr] = useState("");
+  const [balanceUnit, setBalanceUnit] = useState<CurrencyUnit>(currencyUnit);
   const [personId, setPersonId] = useState<number | undefined>(defaultPersonId);
   const [category, setCategory] = useState<"personal" | "business" | "savings" | "family" | "other">("personal");
   const [tagInput, setTagInput] = useState("");
@@ -58,7 +62,12 @@ export const BankCardModal: React.FC<BankCardModalProps> = ({
       setCvv2(cardToEdit.cvv2 || "");
       setExpireMonth(cardToEdit.expireMonth || "");
       setExpireYear(cardToEdit.expireYear || "");
-      setBalanceStr(cardToEdit.balance !== undefined ? cardToEdit.balance.toString() : "");
+      setBalanceUnit(currencyUnit);
+      const disp =
+        currencyUnit === "rial" && cardToEdit.balance !== undefined
+          ? cardToEdit.balance * 10
+          : cardToEdit.balance;
+      setBalanceStr(disp !== undefined ? disp.toString() : "");
       setPersonId(cardToEdit.personId);
       setCategory(cardToEdit.category || "personal");
       setTags(cardToEdit.tags || []);
@@ -72,6 +81,7 @@ export const BankCardModal: React.FC<BankCardModalProps> = ({
       setCvv2("");
       setExpireMonth("");
       setExpireYear("");
+      setBalanceUnit(currencyUnit);
       setBalanceStr("");
       setPersonId(defaultPersonId || peopleList.find((p) => p.isMe)?.id || peopleList[0]?.id);
       setCategory("personal");
@@ -79,7 +89,7 @@ export const BankCardModal: React.FC<BankCardModalProps> = ({
       setNote("");
       setSelectedColor("");
     }
-  }, [cardToEdit, isOpen, defaultPersonId, peopleList]);
+  }, [cardToEdit, isOpen, defaultPersonId, peopleList, currencyUnit]);
 
   const detectedBank = detectBank(cardNumber);
 
@@ -117,7 +127,8 @@ export const BankCardModal: React.FC<BankCardModalProps> = ({
     setTags(tags.filter((t) => t !== tagToRemove));
   };
 
-  const numericBalance = balanceStr ? parseFloat(toEnglishDigits(balanceStr).replace(/\D/g, "")) : undefined;
+  const rawBalanceNum = balanceStr ? parseFloat(toEnglishDigits(balanceStr).replace(/\D/g, "")) : undefined;
+  const balanceInTomans = rawBalanceNum !== undefined ? toTomans(rawBalanceNum, balanceUnit) : undefined;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,7 +149,7 @@ export const BankCardModal: React.FC<BankCardModalProps> = ({
       cvv2: cvv2 || undefined,
       expireMonth: expireMonth || undefined,
       expireYear: expireYear || undefined,
-      balance: numericBalance !== undefined ? numericBalance : (cardToEdit?.balance || 0),
+      balance: balanceInTomans !== undefined ? balanceInTomans : (cardToEdit?.balance || 0),
       personId: personId ? Number(personId) : undefined,
       category,
       tags,
@@ -256,27 +267,16 @@ export const BankCardModal: React.FC<BankCardModalProps> = ({
             </div>
           </div>
 
-          {/* Balance (موجودی اولیه کارت) */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-slate-300">
-                موجودی اولیه کارت (تومان اختیاری)
-              </label>
-              {numericBalance !== undefined && numericBalance > 0 && (
-                <span className="text-[11px] font-mono text-emerald-400 font-bold">
-                  {formatCurrency(numericBalance)} تومان
-                </span>
-              )}
-            </div>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="مثلاً: ۲,۵۰۰,۰۰۰"
-              value={balanceStr ? formatCurrency(balanceStr) : ""}
-              onChange={(e) => setBalanceStr(toEnglishDigits(e.target.value).replace(/\D/g, ""))}
-              className="w-full px-4 py-2.5 rounded-2xl bg-slate-800/80 border border-slate-700 text-white font-mono text-center text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
+          {/* Balance (موجودی اولیه کارت با قابلیت انتخاب ریال / تومان) */}
+          <CurrencyInputField
+            label="موجودی اولیه کارت (اختیاری)"
+            value={balanceStr}
+            onChange={setBalanceStr}
+            unit={balanceUnit}
+            onUnitChange={setBalanceUnit}
+            placeholder="مثلاً: ۲,۵۰۰,۰۰۰"
+            quickAmounts={[500000, 1000000, 2000000, 5000000]}
+          />
 
           {/* Shaba & Account Number */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

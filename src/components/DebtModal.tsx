@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { DebtItem, Person, BankCard, db, addCardTransaction } from "@/lib/db";
 import { formatCurrency, toEnglishDigits } from "@/lib/banks";
 import { useToast } from "@/context/ToastContext";
+import { useCurrency, CurrencyUnit } from "@/context/CurrencyContext";
+import { CurrencyInputField } from "@/components/ui/CurrencyInputField";
 import { AppDrawer } from "@/components/ui/AppDrawer";
 import { ArrowUpRight, ArrowDownLeft, Wallet } from "lucide-react";
 
@@ -27,10 +29,12 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   defaultPersonId,
 }) => {
   const { showToast } = useToast();
+  const { currencyUnit, toTomans, formatAmount } = useCurrency();
 
   const [type, setType] = useState<"creditor" | "debtor">("creditor");
   const [personId, setPersonId] = useState<number | undefined>(defaultPersonId);
   const [amountStr, setAmountStr] = useState("");
+  const [inputUnit, setInputUnit] = useState<CurrencyUnit>(currencyUnit);
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [isSettled, setIsSettled] = useState(false);
@@ -39,10 +43,12 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    setInputUnit(currencyUnit);
     if (debtToEdit) {
       setType(debtToEdit.type);
       setPersonId(debtToEdit.personId);
-      setAmountStr(debtToEdit.amount.toString());
+      const disp = currencyUnit === "rial" ? debtToEdit.amount * 10 : debtToEdit.amount;
+      setAmountStr(disp.toString());
       setDescription(debtToEdit.description);
       setDueDate(debtToEdit.dueDate || "");
       setIsSettled(debtToEdit.isSettled);
@@ -58,7 +64,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
       setLinkCard(false);
       setSelectedCardId(cardsList[0]?.id);
     }
-  }, [debtToEdit, isOpen, defaultPersonId, peopleList, cardsList]);
+  }, [debtToEdit, isOpen, defaultPersonId, peopleList, cardsList, currencyUnit]);
 
   if (!isOpen) return null;
 
@@ -71,7 +77,8 @@ export const DebtModal: React.FC<DebtModalProps> = ({
       showToast("لطفاً طرف حساب (شخص) را مشخص کنید", "error");
       return;
     }
-    if (numericAmount <= 0) {
+    const numericAmountInTomans = toTomans(numericAmount, inputUnit);
+    if (numericAmountInTomans <= 0) {
       showToast("مبلغ باید بیشتر از صفر باشد", "error");
       return;
     }
@@ -83,7 +90,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
     const debtData: Omit<DebtItem, "id"> = {
       personId: Number(personId),
       type,
-      amount: numericAmount,
+      amount: numericAmountInTomans,
       description: description.trim() || (type === "creditor" ? "طلب نقدی" : "بدهی نقدی"),
       dueDate: dueDate.trim() || undefined,
       isSettled,
@@ -110,7 +117,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
           await addCardTransaction(
             selectedCardId,
             txType,
-            numericAmount,
+            numericAmountInTomans,
             txTitle,
             "other",
             description.trim() || undefined,
@@ -120,8 +127,8 @@ export const DebtModal: React.FC<DebtModalProps> = ({
 
           showToast(
             type === "creditor"
-              ? `مبلغ ${formatCurrency(numericAmount)} تومان از کارت ${targetCard?.bankName || ""} کسر و به حساب قرض ثبت شد`
-              : `مبلغ ${formatCurrency(numericAmount)} تومان به کارت ${targetCard?.bankName || ""} واریز و به حساب بدهی ثبت شد`,
+              ? `مبلغ ${formatAmount(numericAmountInTomans)} از کارت ${targetCard?.bankName || ""} کسر و به حساب قرض ثبت شد`
+              : `مبلغ ${formatAmount(numericAmountInTomans)} به کارت ${targetCard?.bankName || ""} واریز و به حساب بدهی ثبت شد`,
             "success"
           );
         } else {
@@ -209,28 +216,17 @@ export const DebtModal: React.FC<DebtModalProps> = ({
           </select>
         </div>
 
-        {/* Amount in Tomans */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-semibold text-slate-300">مبلغ (تومان) *</label>
-            {numericAmount > 0 && (
-              <span className="text-xs font-bold text-emerald-400 font-mono">
-                {formatCurrency(numericAmount)} تومان
-              </span>
-            )}
-          </div>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="مثلاً ۵۰۰,۰۰۰"
-            value={amountStr ? formatCurrency(amountStr) : ""}
-            onChange={(e) =>
-              setAmountStr(toEnglishDigits(e.target.value).replace(/\D/g, ""))
-            }
-            required
-            className="w-full px-4 py-3 rounded-2xl bg-slate-800/80 border border-slate-700 text-white font-mono text-center text-lg font-bold focus:outline-none focus:border-blue-500 transition-colors"
-          />
-        </div>
+        {/* Amount Input with Toman/Rial switcher */}
+        <CurrencyInputField
+          label="مبلغ طلب یا بدهی"
+          value={amountStr}
+          onChange={setAmountStr}
+          unit={inputUnit}
+          onUnitChange={setInputUnit}
+          placeholder="مثلاً ۵۰۰,۰۰۰"
+          required
+          quickAmounts={[100000, 500000, 1000000, 2000000, 5000000]}
+        />
 
         {/* Optional Card Balance Sync (For new debts) */}
         {!debtToEdit && cardsList.length > 0 && (
@@ -269,7 +265,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                 >
                   {cardsList.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.bankName} - {c.title} (موجودی: {formatCurrency(c.balance || 0)} تومان)
+                      {c.bankName} - {c.title} (موجودی: {formatAmount(c.balance || 0)})
                     </option>
                   ))}
                 </select>

@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BankCard, CardTransaction, db, addCardTransaction, deleteCardTransaction } from "@/lib/db";
 import { formatCurrency, toEnglishDigits, toPersianDigits } from "@/lib/banks";
 import { formatToJalali } from "@/lib/date";
 import { useToast } from "@/context/ToastContext";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useCurrency, CurrencyUnit } from "@/context/CurrencyContext";
+import { CurrencyInputField } from "@/components/ui/CurrencyInputField";
 import { AppDrawer } from "@/components/ui/AppDrawer";
 import {
   CreditCard,
@@ -49,13 +51,23 @@ export const CardTransactionsModal: React.FC<CardTransactionsModalProps> = ({
 }) => {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const { currencyUnit, toTomans, formatAmount } = useCurrency();
 
   const [txType, setTxType] = useState<"expense" | "income">("expense");
   const [amountStr, setAmountStr] = useState("");
+  const [inputUnit, setInputUnit] = useState<CurrencyUnit>(currencyUnit);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<CardTransaction["category"]>("shopping");
   const [showSensitive, setShowSensitive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setInputUnit(currencyUnit);
+      setAmountStr("");
+      setTitle("");
+    }
+  }, [isOpen, currencyUnit]);
 
   // Live query for transactions of this card
   const transactions =
@@ -75,7 +87,8 @@ export const CardTransactionsModal: React.FC<CardTransactionsModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (numericAmount <= 0) {
+    const numericAmountInTomans = toTomans(numericAmount, inputUnit);
+    if (numericAmountInTomans <= 0) {
       showToast("مبلغ تراکنش باید بیشتر از صفر باشد", "error");
       return;
     }
@@ -89,7 +102,7 @@ export const CardTransactionsModal: React.FC<CardTransactionsModalProps> = ({
       await addCardTransaction(
         card.id!,
         txType,
-        numericAmount,
+        numericAmountInTomans,
         title.trim(),
         category,
         undefined,
@@ -98,8 +111,8 @@ export const CardTransactionsModal: React.FC<CardTransactionsModalProps> = ({
 
       showToast(
         txType === "expense"
-          ? `مبلغ ${formatCurrency(numericAmount)} تومان از کارت کسر شد`
-          : `مبلغ ${formatCurrency(numericAmount)} تومان به موجودی اضافه شد`,
+          ? `مبلغ ${formatAmount(numericAmountInTomans)} از کارت کسر شد`
+          : `مبلغ ${formatAmount(numericAmountInTomans)} به موجودی اضافه شد`,
         "success"
       );
 
@@ -117,9 +130,9 @@ export const CardTransactionsModal: React.FC<CardTransactionsModalProps> = ({
   const handleDelete = async (tx: CardTransaction) => {
     const ok = await confirm({
       title: "حذف تراکنش",
-      message: `آیا از حذف تراکنش «${tx.title}» به مبلغ ${formatCurrency(
+      message: `آیا از حذف تراکنش «${tx.title}» به مبلغ ${formatAmount(
         tx.amount
-      )} تومان اطمینان دارید؟ موجودی کارت به وضعیت قبل برخواهد گشت.`,
+      )} اطمینان دارید؟ موجودی کارت به وضعیت قبل برخواهد گشت.`,
       confirmText: "بله، حذف شود",
       isDanger: true,
     });
@@ -176,9 +189,8 @@ export const CardTransactionsModal: React.FC<CardTransactionsModalProps> = ({
 
           <div className="text-center py-2">
             <span className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-white">
-              {showSensitive ? formatCurrency(currentBalance) : "••••••••"}
+              {showSensitive ? formatAmount(currentBalance) : "••••••••"}
             </span>
-            <span className="text-xs text-slate-400 mr-2">تومان</span>
           </div>
         </div>
 
@@ -213,28 +225,16 @@ export const CardTransactionsModal: React.FC<CardTransactionsModalProps> = ({
         {/* Fast Add Form */}
         <form onSubmit={handleSubmit} className="space-y-3 p-4 rounded-3xl bg-slate-800/40 border border-slate-800">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Amount */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-slate-300">مبلغ (تومان) *</label>
-                {numericAmount > 0 && (
-                  <span className="text-[11px] font-mono font-bold text-blue-400">
-                    {formatCurrency(numericAmount)} تومان
-                  </span>
-                )}
-              </div>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="مثلاً: ۵۰,۰۰۰"
-                value={amountStr ? formatCurrency(amountStr) : ""}
-                onChange={(e) =>
-                  setAmountStr(toEnglishDigits(e.target.value).replace(/\D/g, ""))
-                }
-                required
-                className="w-full px-4 py-2.5 rounded-2xl bg-slate-900 border border-slate-700 text-white font-mono text-center text-base font-bold focus:outline-none focus:border-blue-500 transition-colors"
-              />
-            </div>
+            {/* Amount with Toman/Rial switcher */}
+            <CurrencyInputField
+              label="مبلغ تراکنش"
+              value={amountStr}
+              onChange={setAmountStr}
+              unit={inputUnit}
+              onUnitChange={setInputUnit}
+              placeholder="مثلاً: ۵۰,۰۰۰"
+              required
+            />
 
             {/* Title / Description */}
             <div>
@@ -349,7 +349,7 @@ export const CardTransactionsModal: React.FC<CardTransactionsModalProps> = ({
                         tx.type === "expense" ? "text-rose-400" : "text-emerald-400"
                       }`}
                     >
-                      {tx.type === "expense" ? "−" : "+"} {formatCurrency(tx.amount)} تومان
+                      {tx.type === "expense" ? "−" : "+"} {formatAmount(tx.amount)}
                     </span>
                     <button
                       type="button"

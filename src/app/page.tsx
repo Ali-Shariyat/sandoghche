@@ -15,6 +15,7 @@ import { formatJalaliFull, getTodayJalali, formatToJalali } from "@/lib/date";
 import { toPersianDigits, formatCurrency, formatCardNumber } from "@/lib/banks";
 import { useToast } from "@/context/ToastContext";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import { AppNavigation, NavTab } from "@/components/AppNavigation";
 import { BankCardVisual } from "@/components/BankCardVisual";
 import { BankCardModal } from "@/components/BankCardModal";
@@ -65,6 +66,7 @@ import {
 export default function Home() {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const { formatAmount } = useCurrency();
 
   // Active navigation tab
   const [activeTab, setActiveTab] = useState<NavTab>("home");
@@ -266,7 +268,7 @@ export default function Home() {
   const handleDeleteDebt = async (debt: DebtItem) => {
     const ok = await confirm({
       title: "حذف از دفتر حساب",
-      message: `آیا از حذف حساب به مبلغ ${formatCurrency(debt.amount)} تومان اطمینان دارید؟`,
+      message: `آیا از حذف حساب به مبلغ ${formatAmount(debt.amount)} اطمینان دارید؟`,
       confirmText: "بله، حذف شود",
       isDanger: true,
     });
@@ -416,21 +418,21 @@ export default function Home() {
                   <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60">
                     <span className="text-[10px] text-slate-400 block truncate">موجودی کل کارت‌ها</span>
                     <span className="text-xs sm:text-sm font-bold font-mono text-white mt-0.5 block truncate">
-                      {formatCurrency(totalCardsBalance)}
+                      {formatAmount(totalCardsBalance)}
                     </span>
                   </div>
 
                   <div className="p-2 rounded-xl bg-emerald-950/30 border border-emerald-900/30">
                     <span className="text-[10px] text-emerald-400 block truncate">کل واریزی‌ها</span>
                     <span className="text-xs sm:text-sm font-bold font-mono text-emerald-300 mt-0.5 block truncate">
-                      +{formatCurrency(totalIncome)}
+                      +{formatAmount(totalIncome)}
                     </span>
                   </div>
 
                   <div className="p-2 rounded-xl bg-rose-950/30 border border-rose-900/30">
                     <span className="text-[10px] text-rose-400 block truncate">کل برداشت‌ها</span>
                     <span className="text-xs sm:text-sm font-bold font-mono text-rose-300 mt-0.5 block truncate">
-                      -{formatCurrency(totalExpense)}
+                      -{formatAmount(totalExpense)}
                     </span>
                   </div>
                 </div>
@@ -494,7 +496,7 @@ export default function Home() {
                       کل طلب (قرض داده‌اید):
                     </span>
                     <span className="text-xs sm:text-sm font-bold text-emerald-300 font-mono truncate block">
-                      {formatCurrency(totalReceivable)} تومان
+                      {formatAmount(totalReceivable)}
                     </span>
                   </div>
                   <div className="min-w-0">
@@ -502,7 +504,7 @@ export default function Home() {
                       کل بدهی (قرض گرفته‌اید):
                     </span>
                     <span className="text-xs sm:text-sm font-bold text-rose-300 font-mono truncate block">
-                      {formatCurrency(totalPayable)} تومان
+                      {formatAmount(totalPayable)}
                     </span>
                   </div>
                 </div>
@@ -1035,7 +1037,7 @@ export default function Home() {
                   طلب جاری (قرض داده‌اید):
                 </span>
                 <span className="text-base font-bold text-emerald-300 font-mono mt-1 block">
-                  {formatCurrency(totalReceivable)} تومان
+                  {formatAmount(totalReceivable)}
                 </span>
               </div>
               <div className="p-3 rounded-2xl bg-rose-950/40 border border-rose-900/40">
@@ -1043,7 +1045,7 @@ export default function Home() {
                   بدهی جاری (قرض گرفته‌اید):
                 </span>
                 <span className="text-base font-bold text-rose-300 font-mono mt-1 block">
-                  {formatCurrency(totalPayable)} تومان
+                  {formatAmount(totalPayable)}
                 </span>
               </div>
             </div>
@@ -1151,7 +1153,7 @@ export default function Home() {
                               d.type === "creditor" ? "text-emerald-400" : "text-rose-400"
                             }`}
                           >
-                            {formatCurrency(d.amount)} تومان
+                            {formatAmount(d.amount)}
                           </span>
                           {d.isSettled ? (
                             <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full font-semibold mt-1">
