@@ -78,10 +78,10 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
   const netBalance = creditorTotal - debtorTotal; // positive: they owe me, negative: I owe them
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92dvh]">
         {/* Header Profile Summary */}
-        <div className="p-5 sm:p-6 bg-gradient-to-b from-slate-800/90 to-slate-900 border-b border-slate-800">
+        <div className="p-4 sm:p-6 bg-gradient-to-b from-slate-800/90 to-slate-900 border-b border-slate-800">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3.5">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white text-xl font-bold shadow-lg overflow-hidden shrink-0">
