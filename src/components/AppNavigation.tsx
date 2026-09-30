@@ -67,8 +67,8 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800/80 max-w-lg mx-auto pb-safe">
-      <div className="flex items-center justify-between py-1.5 px-1 w-full">
+    <nav className="fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800/80 pb-safe">
+      <div className="w-full max-w-xl mx-auto flex items-center justify-between py-1.5 px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;

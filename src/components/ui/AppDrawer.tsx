@@ -28,7 +28,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm transition-opacity duration-300" />
         <Drawer.Content
-          className={`fixed inset-x-0 bottom-0 z-50 flex flex-col bg-slate-900 border-t border-slate-800 rounded-t-[2.2rem] shadow-2xl focus:outline-none max-w-lg mx-auto ${maxHeight}`}
+          className={`fixed inset-x-0 bottom-0 z-50 flex flex-col bg-slate-900 border-t border-slate-800 rounded-t-[2.2rem] shadow-2xl focus:outline-none w-full max-w-xl mx-auto ${maxHeight}`}
           dir="rtl"
         >
           {/* Grabber handle */}

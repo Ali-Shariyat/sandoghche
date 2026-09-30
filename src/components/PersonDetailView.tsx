@@ -84,7 +84,7 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92dvh]">
+      <div className="relative w-full max-w-xl mx-auto bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92dvh]">
         {/* Header Profile Summary */}
         <div className="p-4 sm:p-6 bg-gradient-to-b from-slate-800/90 to-slate-900 border-b border-slate-800">
           <div className="flex items-start justify-between">
@@ -208,19 +208,19 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
                 return (
                   <div
                     key={cf.id}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/90 border border-slate-700/60 shadow-sm"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/90 border border-slate-700/60 shadow-sm max-w-full"
                   >
                     <Tag className="w-3 h-3 text-emerald-400 shrink-0" />
-                    <span className="text-slate-400 font-medium">{cf.label}:</span>
+                    <span className="text-slate-400 font-medium shrink-0">{cf.label}:</span>
                     {isPhone ? (
                       <a
                         href={`tel:${cf.value}`}
-                        className="dir-ltr font-mono text-emerald-400 font-bold hover:underline"
+                        className="dir-ltr font-mono text-emerald-400 font-bold hover:underline truncate"
                       >
                         {toPersianDigits(cf.value)}
                       </a>
                     ) : (
-                      <span className="font-semibold text-white">{toPersianDigits(cf.value)}</span>
+                      <span className="font-semibold text-white break-all">{toPersianDigits(cf.value)}</span>
                     )}
                     <button
                       type="button"

@@ -252,9 +252,10 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] max-h-[100dvh] max-w-lg mx-auto bg-slate-950 text-slate-100 relative overflow-hidden">
-      {/* Top Header */}
-      <header className="shrink-0 z-30 bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 px-3.5 pt-2.5 pb-2.5">
+    <div className="min-h-screen w-full flex flex-col bg-slate-950 text-slate-100 relative overflow-x-hidden">
+      <div className="w-full max-w-xl mx-auto flex-1 flex flex-col relative">
+        {/* Top Header */}
+        <header className="sticky top-0 z-30 w-full bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 px-3.5 pt-2.5 pb-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
@@ -323,7 +324,7 @@ export default function Home() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-3.5 pb-24 overflow-y-auto overflow-x-hidden">
+      <main className="flex-1 w-full p-3.5 sm:p-4 pb-32">
         {/* TAB 1: DASHBOARD (HOME) */}
         {activeTab === "home" && (
           <div className="space-y-4 animate-in fade-in duration-200">
@@ -1024,6 +1025,7 @@ export default function Home() {
           />
         )}
       </main>
+      </div>
 
       {/* Bottom Mobile Navigation */}
       <AppNavigation
