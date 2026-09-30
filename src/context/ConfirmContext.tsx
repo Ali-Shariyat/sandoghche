@@ -67,9 +67,9 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
 
       <Dialog.Root open={isOpen} onOpenChange={(open) => !open && handleCancel()}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" />
+          <Dialog.Overlay className="fixed inset-0 z-[9990] bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" />
           <Dialog.Content
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-sm rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-6 shadow-2xl text-slate-100 animate-in zoom-in-95 duration-200 focus:outline-none"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9990] w-[90%] max-w-sm rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-6 shadow-2xl text-slate-100 animate-in zoom-in-95 duration-200 focus:outline-none"
             dir="rtl"
           >
             <div className="flex items-center gap-3 mb-3">

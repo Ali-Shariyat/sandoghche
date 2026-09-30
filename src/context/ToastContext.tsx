@@ -37,7 +37,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       {/* Toast container on top of mobile screen */}
-      <div className="fixed top-4 left-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-md mx-auto">
+      <div className="fixed top-4 left-4 right-4 z-[99999] flex flex-col gap-2 pointer-events-none max-w-md mx-auto">
         {toasts.map((toast) => (
           <div
             key={toast.id}
