@@ -14,9 +14,11 @@ import {
 import { formatJalaliFull, getTodayJalali, formatToJalali } from "@/lib/date";
 import { toPersianDigits, formatCurrency, formatCardNumber } from "@/lib/banks";
 import { useToast } from "@/context/ToastContext";
+import { useConfirm } from "@/context/ConfirmContext";
 import { AppNavigation, NavTab } from "@/components/AppNavigation";
 import { BankCardVisual } from "@/components/BankCardVisual";
 import { BankCardModal } from "@/components/BankCardModal";
+import { CardTransactionsModal } from "@/components/CardTransactionsModal";
 import { PersonModal } from "@/components/PersonModal";
 import { PersonDetailView } from "@/components/PersonDetailView";
 import { DocumentUploadModal } from "@/components/DocumentUploadModal";
@@ -55,6 +57,7 @@ import {
 
 export default function Home() {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   // Active navigation tab
   const [activeTab, setActiveTab] = useState<NavTab>("home");
@@ -73,6 +76,7 @@ export default function Home() {
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [cardToEdit, setCardToEdit] = useState<BankCard | null>(null);
   const [defaultCardPersonId, setDefaultCardPersonId] = useState<number | undefined>();
+  const [selectedCardForTx, setSelectedCardForTx] = useState<BankCard | null>(null);
 
   const [isPersonModalOpen, setIsPersonModalOpen] = useState(false);
   const [personToEdit, setPersonToEdit] = useState<Person | null>(null);
@@ -151,7 +155,13 @@ export default function Home() {
       p.name.toLowerCase().includes(q) ||
       (p.nationalCode && p.nationalCode.includes(q)) ||
       (p.phoneNumber && p.phoneNumber.includes(q)) ||
-      (p.relation && p.relation.toLowerCase().includes(q))
+      (p.relation && p.relation.toLowerCase().includes(q)) ||
+      (p.job && p.job.toLowerCase().includes(q)) ||
+      (p.address && p.address.toLowerCase().includes(q)) ||
+      (p.customFields &&
+        p.customFields.some(
+          (cf) => cf.label.toLowerCase().includes(q) || cf.value.toLowerCase().includes(q)
+        ))
     );
   });
 
@@ -184,7 +194,14 @@ export default function Home() {
 
   // Delete Card handler
   const handleDeleteCard = async (id: number) => {
-    if (confirm("آیا از حذف این کارت بانکی مطمئن هستید؟")) {
+    const ok = await confirm({
+      title: "حذف کارت بانکی",
+      message: "آیا از حذف این کارت بانکی اطمینان دارید؟ تمامی تراکنش‌ها و اطلاعات متصل به این کارت نیز حذف خواهند شد.",
+      confirmText: "بله، حذف شود",
+      isDanger: true,
+    });
+    if (ok) {
+      await db.cardTransactions.where("cardId").equals(id).delete();
       await db.bankCards.delete(id);
       showToast("کارت بانکی حذف شد", "info");
     }
@@ -201,7 +218,13 @@ export default function Home() {
 
   // Delete Note handler
   const handleDeleteNote = async (id: number) => {
-    if (confirm("آیا از حذف این یادداشت اطمینان دارید؟")) {
+    const ok = await confirm({
+      title: "حذف یادداشت",
+      message: "آیا از حذف این یادداشت اطمینان دارید؟",
+      confirmText: "بله، حذف شود",
+      isDanger: true,
+    });
+    if (ok) {
       await db.notes.delete(id);
       showToast("یادداشت حذف شد", "info");
     }
@@ -470,6 +493,7 @@ export default function Home() {
                           setIsCardModalOpen(true);
                         }}
                         onDelete={handleDeleteCard}
+                        onOpenTransactions={(c) => setSelectedCardForTx(c)}
                       />
                     );
                   })}
@@ -586,6 +610,7 @@ export default function Home() {
                         setIsCardModalOpen(true);
                       }}
                       onDelete={handleDeleteCard}
+                      onOpenTransactions={(c) => setSelectedCardForTx(c)}
                     />
                   );
                 })}
@@ -1055,8 +1080,15 @@ export default function Home() {
             setIsPersonModalOpen(true);
           }}
           onDeletePerson={handleDeletePerson}
+          onOpenTransactions={(c) => setSelectedCardForTx(c)}
         />
       )}
+
+      <CardTransactionsModal
+        isOpen={!!selectedCardForTx}
+        onClose={() => setSelectedCardForTx(null)}
+        card={selectedCardForTx}
+      />
 
       <DocumentUploadModal
         isOpen={isDocUploadModalOpen}

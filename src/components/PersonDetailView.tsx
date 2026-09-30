@@ -6,6 +6,7 @@ import { toPersianDigits, formatCurrency } from "@/lib/banks";
 import { formatToJalali } from "@/lib/date";
 import { BankCardVisual } from "./BankCardVisual";
 import { useToast } from "@/context/ToastContext";
+import { useConfirm } from "@/context/ConfirmContext";
 import {
   X,
   User,
@@ -24,6 +25,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   FileText,
+  Tag,
 } from "lucide-react";
 
 interface PersonDetailViewProps {
@@ -40,6 +42,7 @@ interface PersonDetailViewProps {
   onViewDocument: (doc: DocumentItem) => void;
   onEditPerson: (person: Person) => void;
   onDeletePerson?: (id: number) => void;
+  onOpenTransactions?: (card: BankCard) => void;
 }
 
 export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
@@ -56,8 +59,10 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
   onViewDocument,
   onEditPerson,
   onDeletePerson,
+  onOpenTransactions,
 }) => {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [activeTab, setActiveTab] = useState<"cards" | "docs" | "debts" | "notes">("cards");
 
   const copyText = (text?: string, label = "متن") => {
@@ -140,8 +145,14 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
               </button>
               {onDeletePerson && !person.isMe && (
                 <button
-                  onClick={() => {
-                    if (confirm(`آیا از حذف اطلاعات «${person.name}» مطمئن هستید؟`)) {
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: "حذف مخاطب",
+                      message: `آیا از حذف اطلاعات «${person.name}» مطمئن هستید؟ تمام اسناد و بدهی‌های مربوط به این شخص نیز حذف خواهند شد.`,
+                      confirmText: "بله، حذف شود",
+                      isDanger: true,
+                    });
+                    if (ok) {
                       onDeletePerson(person.id!);
                       onClose();
                     }
@@ -161,7 +172,7 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
             </div>
           </div>
 
-          {/* Extended info pills (Job, Address, Notes) */}
+          {/* Extended info pills (Job, Address, BirthDate) */}
           {(person.job || person.birthDate || person.address) && (
             <div className="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-slate-800/80 text-xs text-slate-400">
               {person.job && (
@@ -182,6 +193,46 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
                   {person.address}
                 </span>
               )}
+            </div>
+          )}
+
+          {/* Custom Dynamic Fields (e.g. دور کمر، شماره تماس دوم، تاریخ میلادی، آدرس انبار و...) */}
+          {person.customFields && person.customFields.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-slate-800/80 text-xs text-slate-300">
+              {person.customFields.map((cf) => {
+                const isPhone =
+                  cf.label.includes("تلفن") ||
+                  cf.label.includes("موبایل") ||
+                  cf.label.includes("تماس") ||
+                  /^[0-9+\s-]{8,}$/.test(cf.value);
+                return (
+                  <div
+                    key={cf.id}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/90 border border-slate-700/60 shadow-sm"
+                  >
+                    <Tag className="w-3 h-3 text-emerald-400 shrink-0" />
+                    <span className="text-slate-400 font-medium">{cf.label}:</span>
+                    {isPhone ? (
+                      <a
+                        href={`tel:${cf.value}`}
+                        className="dir-ltr font-mono text-emerald-400 font-bold hover:underline"
+                      >
+                        {toPersianDigits(cf.value)}
+                      </a>
+                    ) : (
+                      <span className="font-semibold text-white">{toPersianDigits(cf.value)}</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => copyText(cf.value, cf.label)}
+                      title="کپی"
+                      className="p-1 rounded text-slate-500 hover:text-white transition-colors"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -291,6 +342,7 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
                       person={person}
                       onEdit={onEditCard}
                       onDelete={onDeleteCard}
+                      onOpenTransactions={onOpenTransactions}
                     />
                   ))}
                 </div>

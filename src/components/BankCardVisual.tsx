@@ -7,6 +7,7 @@ import {
   formatCardNumber,
   formatShabaNumber,
   toPersianDigits,
+  formatCurrency,
   BankInfo,
 } from "@/lib/banks";
 import { useToast } from "@/context/ToastContext";
@@ -18,9 +19,10 @@ import {
   Share2,
   Trash2,
   Edit2,
-  Tag,
+  Receipt,
   User,
   Check,
+  Tag,
 } from "lucide-react";
 
 interface BankCardVisualProps {
@@ -28,6 +30,7 @@ interface BankCardVisualProps {
   person?: Person;
   onEdit?: (card: BankCard) => void;
   onDelete?: (id: number) => void;
+  onOpenTransactions?: (card: BankCard) => void;
   compact?: boolean;
 }
 
@@ -36,6 +39,7 @@ export const BankCardVisual: React.FC<BankCardVisualProps> = ({
   person,
   onEdit,
   onDelete,
+  onOpenTransactions,
   compact = false,
 }) => {
   const { showToast } = useToast();
@@ -227,6 +231,29 @@ export const BankCardVisual: React.FC<BankCardVisualProps> = ({
               {showSensitive ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
           </div>
+        </div>
+
+        {/* Card Balance & Transactions Strip */}
+        <div className="relative z-10 flex items-center justify-between mt-3 pt-2.5 border-t border-white/20 text-xs">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-[10px] text-white/80 font-light">موجودی:</span>
+            <span className="font-mono font-bold text-xs sm:text-sm text-white drop-shadow truncate">
+              {showSensitive
+                ? `${formatCurrency(card.balance !== undefined ? card.balance : 0)} تومان`
+                : "••••••••"}
+            </span>
+          </div>
+
+          {onOpenTransactions && (
+            <button
+              type="button"
+              onClick={() => onOpenTransactions(card)}
+              className="px-2.5 py-1 rounded-xl bg-white/20 hover:bg-white/30 active:scale-95 text-[11px] font-bold text-white transition-all flex items-center gap-1.5 shadow-sm backdrop-blur-md shrink-0"
+            >
+              <Receipt className="w-3.5 h-3.5 text-amber-300" />
+              <span>ثبت خرج / تراکنش</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import React from "react";
 import { DocumentItem, db } from "@/lib/db";
 import { formatToJalali } from "@/lib/date";
 import { useToast } from "@/context/ToastContext";
+import { useConfirm } from "@/context/ConfirmContext";
 import { X, Download, Trash2, Calendar, FileText, Share2 } from "lucide-react";
 
 interface DocumentViewerModalProps {
@@ -18,6 +19,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   onDeleted,
 }) => {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   if (!document) return null;
 
@@ -32,7 +34,13 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   };
 
   const handleDelete = async () => {
-    if (confirm(`آیا از حذف مدرک «${document.title}» مطمئن هستید؟`)) {
+    const ok = await confirm({
+      title: "حذف مدرک",
+      message: `آیا از حذف مدرک «${document.title}» مطمئن هستید؟ این عمل غیرقابل بازگشت است.`,
+      confirmText: "بله، حذف شود",
+      isDanger: true,
+    });
+    if (ok) {
       try {
         await db.documents.delete(document.id!);
         showToast("مدرک با موفقیت حذف شد", "info");

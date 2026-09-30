@@ -1,5 +1,11 @@
 import Dexie, { type Table } from "dexie";
 
+export interface CustomField {
+  id: string;
+  label: string; // e.g. "دور کمر", "تلفن دوم", "تاریخ میلادی", "آدرس انبار", "ایمیل"
+  value: string; // e.g. "۸۵ سانتی‌متر", "۰۹۱۲۳۴۵۶۷۸۹", "1995/04/12"
+}
+
 export interface Person {
   id?: number;
   name: string;
@@ -13,6 +19,7 @@ export interface Person {
   avatar?: string; // Base64
   notes?: string;
   tags?: string[];
+  customFields?: CustomField[];
   createdAt: number;
   updatedAt: number;
 }
@@ -33,9 +40,21 @@ export interface BankCard {
   category: "personal" | "business" | "savings" | "family" | "other";
   tags: string[];
   isFavorite?: boolean;
+  balance?: number; // موجودی کارت به تومان
   note?: string;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface CardTransaction {
+  id?: number;
+  cardId: number; // شناسه کارت متصل
+  type: "expense" | "income"; // expense: خرج / کسر | income: واریز / افزایش
+  amount: number; // تومان
+  title: string; // بابت چه چیزی؟ مثلاً خرید سوپرمارکت، بنزین
+  category?: "food" | "shopping" | "transport" | "bills" | "health" | "salary" | "other";
+  date: number; // زمان ثبت
+  note?: string;
 }
 
 export interface DocumentItem {
@@ -118,6 +137,7 @@ export interface AppSetting {
 export class PersonalVaultDB extends Dexie {
   people!: Table<Person, number>;
   bankCards!: Table<BankCard, number>;
+  cardTransactions!: Table<CardTransaction, number>;
   documents!: Table<DocumentItem, number>;
   notes!: Table<NoteItem, number>;
   debts!: Table<DebtItem, number>;
@@ -137,10 +157,73 @@ export class PersonalVaultDB extends Dexie {
       secrets: "++id, title, category, createdAt",
       settings: "key",
     });
+    this.version(2).stores({
+      cardTransactions: "++id, cardId, type, date, category",
+    });
   }
 }
 
 export const db = new PersonalVaultDB();
+
+/**
+ * Adds a transaction to a card and automatically updates the card balance
+ */
+export async function addCardTransaction(
+  cardId: number,
+  type: "expense" | "income",
+  amount: number,
+  title: string,
+  category?: CardTransaction["category"],
+  note?: string,
+  date: number = Date.now()
+): Promise<number> {
+  return await db.transaction("rw", [db.bankCards, db.cardTransactions], async () => {
+    const card = await db.bankCards.get(cardId);
+    if (!card) throw new Error("Card not found");
+
+    const currentBalance = card.balance || 0;
+    const newBalance = type === "expense" ? currentBalance - amount : currentBalance + amount;
+
+    await db.bankCards.update(cardId, {
+      balance: newBalance,
+      updatedAt: Date.now(),
+    });
+
+    const txId = await db.cardTransactions.add({
+      cardId,
+      type,
+      amount,
+      title: title.trim(),
+      category: category || "other",
+      date,
+      note: note?.trim(),
+    });
+
+    return txId;
+  });
+}
+
+/**
+ * Deletes a card transaction and reverts its impact on the card balance
+ */
+export async function deleteCardTransaction(txId: number): Promise<void> {
+  await db.transaction("rw", [db.bankCards, db.cardTransactions], async () => {
+    const tx = await db.cardTransactions.get(txId);
+    if (!tx) return;
+
+    const card = await db.bankCards.get(tx.cardId);
+    if (card) {
+      const currentBalance = card.balance || 0;
+      const revertedBalance = tx.type === "expense" ? currentBalance + tx.amount : currentBalance - tx.amount;
+      await db.bankCards.update(tx.cardId, {
+        balance: revertedBalance,
+        updatedAt: Date.now(),
+      });
+    }
+
+    await db.cardTransactions.delete(txId);
+  });
+}
 
 /**
  * Initializes the default profile for "Me" if the database is empty
@@ -184,6 +267,7 @@ export interface ExportDataPayload {
   data: {
     people: Person[];
     bankCards: BankCard[];
+    cardTransactions?: CardTransaction[];
     documents: DocumentItem[];
     notes: NoteItem[];
     debts: DebtItem[];
@@ -199,6 +283,7 @@ export interface ExportDataPayload {
 export async function exportAllData(): Promise<string> {
   const people = await db.people.toArray();
   const bankCards = await db.bankCards.toArray();
+  const cardTransactions = await db.cardTransactions.toArray();
   const documents = await db.documents.toArray();
   const notes = await db.notes.toArray();
   const debts = await db.debts.toArray();
@@ -207,13 +292,14 @@ export async function exportAllData(): Promise<string> {
   const settings = await db.settings.toArray();
 
   const payload: ExportDataPayload = {
-    version: 1,
+    version: 2,
     appName: "PersonalVault",
     exportDate: new Date().toISOString(),
     timestamp: Date.now(),
     data: {
       people,
       bankCards,
+      cardTransactions,
       documents,
       notes,
       debts,
@@ -240,30 +326,55 @@ export async function importAllData(
       return { success: false, message: "ساختار فایل پشتیبان نامعتبر است." };
     }
 
-    const { people = [], bankCards = [], documents = [], notes = [], debts = [], cheques = [], secrets = [], settings = [] } =
-      payload.data;
+    const {
+      people = [],
+      bankCards = [],
+      cardTransactions = [],
+      documents = [],
+      notes = [],
+      debts = [],
+      cheques = [],
+      secrets = [],
+      settings = [],
+    } = payload.data;
 
-    await db.transaction("rw", [db.people, db.bankCards, db.documents, db.notes, db.debts, db.cheques, db.secrets, db.settings], async () => {
-      if (mode === "overwrite") {
-        await db.people.clear();
-        await db.bankCards.clear();
-        await db.documents.clear();
-        await db.notes.clear();
-        await db.debts.clear();
-        await db.cheques.clear();
-        await db.secrets.clear();
-        await db.settings.clear();
+    await db.transaction(
+      "rw",
+      [
+        db.people,
+        db.bankCards,
+        db.cardTransactions,
+        db.documents,
+        db.notes,
+        db.debts,
+        db.cheques,
+        db.secrets,
+        db.settings,
+      ],
+      async () => {
+        if (mode === "overwrite") {
+          await db.people.clear();
+          await db.bankCards.clear();
+          await db.cardTransactions.clear();
+          await db.documents.clear();
+          await db.notes.clear();
+          await db.debts.clear();
+          await db.cheques.clear();
+          await db.secrets.clear();
+          await db.settings.clear();
+        }
+
+        if (people.length > 0) await db.people.bulkAdd(people);
+        if (bankCards.length > 0) await db.bankCards.bulkAdd(bankCards);
+        if (cardTransactions.length > 0) await db.cardTransactions.bulkAdd(cardTransactions);
+        if (documents.length > 0) await db.documents.bulkAdd(documents);
+        if (notes.length > 0) await db.notes.bulkAdd(notes);
+        if (debts.length > 0) await db.debts.bulkAdd(debts);
+        if (cheques.length > 0) await db.cheques.bulkAdd(cheques);
+        if (secrets.length > 0) await db.secrets.bulkAdd(secrets);
+        if (settings.length > 0) await db.settings.bulkPut(settings);
       }
-
-      if (people.length > 0) await db.people.bulkAdd(people);
-      if (bankCards.length > 0) await db.bankCards.bulkAdd(bankCards);
-      if (documents.length > 0) await db.documents.bulkAdd(documents);
-      if (notes.length > 0) await db.notes.bulkAdd(notes);
-      if (debts.length > 0) await db.debts.bulkAdd(debts);
-      if (cheques.length > 0) await db.cheques.bulkAdd(cheques);
-      if (secrets.length > 0) await db.secrets.bulkAdd(secrets);
-      if (settings.length > 0) await db.settings.bulkPut(settings);
-    });
+    );
 
     return {
       success: true,
@@ -271,6 +382,7 @@ export async function importAllData(
       counts: {
         people: people.length,
         bankCards: bankCards.length,
+        cardTransactions: cardTransactions.length,
         documents: documents.length,
         notes: notes.length,
         debts: debts.length,
@@ -291,15 +403,30 @@ export async function importAllData(
  * Reset all database tables
  */
 export async function clearEntireDatabase(): Promise<void> {
-  await db.transaction("rw", [db.people, db.bankCards, db.documents, db.notes, db.debts, db.cheques, db.secrets, db.settings], async () => {
-    await db.people.clear();
-    await db.bankCards.clear();
-    await db.documents.clear();
-    await db.notes.clear();
-    await db.debts.clear();
-    await db.cheques.clear();
-    await db.secrets.clear();
-    await db.settings.clear();
-  });
+  await db.transaction(
+    "rw",
+    [
+      db.people,
+      db.bankCards,
+      db.cardTransactions,
+      db.documents,
+      db.notes,
+      db.debts,
+      db.cheques,
+      db.secrets,
+      db.settings,
+    ],
+    async () => {
+      await db.people.clear();
+      await db.bankCards.clear();
+      await db.cardTransactions.clear();
+      await db.documents.clear();
+      await db.notes.clear();
+      await db.debts.clear();
+      await db.cheques.clear();
+      await db.secrets.clear();
+      await db.settings.clear();
+    }
+  );
   await initializeDatabase();
 }

@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { NoteItem, Person, BankCard, db } from "@/lib/db";
 import { useToast } from "@/context/ToastContext";
-import { X, FileText, Pin, Tag, Sparkles } from "lucide-react";
+import { AppDrawer } from "@/components/ui/AppDrawer";
+import { FileText, Pin, Tag, Sparkles } from "lucide-react";
 
 interface NoteModalProps {
   isOpen: boolean;
@@ -103,26 +104,13 @@ export const NoteModal: React.FC<NoteModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm overflow-hidden animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 sm:p-6 text-slate-100 max-h-[90dvh] overflow-y-auto">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
-              <FileText className="w-5 h-5" />
-            </div>
-            <h2 className="text-lg font-bold">
-              {noteToEdit ? "ویرایش یادداشت" : "ثبت یادداشت جدید"}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+    <AppDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={noteToEdit ? "ویرایش یادداشت" : "ثبت یادداشت جدید"}
+      icon={<FileText className="w-5 h-5 text-amber-400" />}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
               عنوان یادداشت *
@@ -293,7 +281,6 @@ export const NoteModal: React.FC<NoteModalProps> = ({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </AppDrawer>
   );
 };
