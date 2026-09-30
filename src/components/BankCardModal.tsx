@@ -199,16 +199,21 @@ export const BankCardModal: React.FC<BankCardModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Card Number */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              شماره ۱۶ رقمی کارت *
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-slate-300">
+                شماره ۱۶ رقمی کارت *
+              </label>
+              <span className={`text-[11px] font-mono ${cardNumber.length === 16 ? "text-emerald-400 font-bold" : "text-slate-400"}`}>
+                {toPersianDigits(cardNumber.length)} / ۱۶ رقم
+              </span>
+            </div>
             <input
               type="text"
               inputMode="numeric"
-              placeholder="۶۰۳۷-۹۹۱۸-xxxx-xxxx"
-              value={formatCardNumber(cardNumber)}
+              placeholder="۶۰۳۷ ۹۹۱۸ ۱۲۳۴ ۵۶۷۸"
+              value={formatCardNumber(cardNumber, " ")}
               onChange={handleCardNumberChange}
-              maxLength={23}
+              maxLength={24}
               required
               className="w-full px-4 py-3 rounded-2xl bg-slate-800/80 border border-slate-700 text-white font-mono text-center text-lg tracking-wider focus:outline-none focus:border-blue-500 transition-colors dir-ltr"
             />

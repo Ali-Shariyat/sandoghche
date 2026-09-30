@@ -295,10 +295,10 @@ export function detectBank(cardNumber: string): BankInfo {
 /**
  * Format 16 digit card number to 4-4-4-4 with spaces
  */
-export function formatCardNumber(num: string): string {
+export function formatCardNumber(num: string, separator = " - "): string {
   const cleaned = (num || "").replace(/\D/g, "").slice(0, 16);
   const parts = cleaned.match(/.{1,4}/g);
-  return parts ? parts.join(" - ") : cleaned;
+  return parts ? parts.join(separator) : cleaned;
 }
 
 /**
