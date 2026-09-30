@@ -25,6 +25,9 @@ import { DocumentUploadModal } from "@/components/DocumentUploadModal";
 import { DocumentViewerModal } from "@/components/DocumentViewerModal";
 import { NoteModal } from "@/components/NoteModal";
 import { DebtModal } from "@/components/DebtModal";
+import { SettleDebtModal } from "@/components/SettleDebtModal";
+import { TransactionsView } from "@/components/TransactionsView";
+import { TransactionModal } from "@/components/TransactionModal";
 import { BackupModal } from "@/components/BackupModal";
 import { SettingsView } from "@/components/SettingsView";
 import { PinLockScreen } from "@/components/PinLockScreen";
@@ -34,6 +37,7 @@ import {
   Users,
   FileText,
   ArrowLeftRight,
+  ArrowDownUp,
   Plus,
   Search,
   Database,
@@ -53,6 +57,9 @@ import {
   X,
   Share2,
   Copy,
+  Wallet,
+  Receipt,
+  Trash2,
 } from "lucide-react";
 
 export default function Home() {
@@ -93,6 +100,12 @@ export default function Home() {
 
   const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
   const [debtToEdit, setDebtToEdit] = useState<DebtItem | null>(null);
+  const [selectedDebtForSettle, setSelectedDebtForSettle] = useState<DebtItem | null>(null);
+
+  // Cashflow & Transactions Modal States
+  const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+  const [txModalType, setTxModalType] = useState<"expense" | "income" | "transfer">("expense");
+  const [txModalDefaultCardId, setTxModalDefaultCardId] = useState<number | undefined>();
 
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isPinSetupOpen, setIsPinSetupOpen] = useState(false);
@@ -120,6 +133,7 @@ export default function Home() {
   const documents = useLiveQuery(() => db.documents.toArray()) || [];
   const notes = useLiveQuery(() => db.notes.toArray()) || [];
   const debts = useLiveQuery(() => db.debts.toArray()) || [];
+  const cardTransactions = useLiveQuery(() => db.cardTransactions.toArray()) || [];
 
   // Identify "Me" profile
   const meProfile = people.find((p) => p.isMe) || people[0];
@@ -132,6 +146,15 @@ export default function Home() {
   const totalPayable = debts
     .filter((d) => d.type === "debtor" && !d.isSettled)
     .reduce((sum, d) => sum + d.amount, 0);
+
+  // Total balance and cashflow
+  const totalCardsBalance = cards.reduce((sum, c) => sum + (c.balance || 0), 0);
+  const totalIncome = cardTransactions
+    .filter((t) => t.type === "income")
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = cardTransactions
+    .filter((t) => t.type === "expense")
+    .reduce((sum, t) => sum + t.amount, 0);
 
   // Filtered Cards
   const filteredCards = cards.filter((c) => {
@@ -237,6 +260,20 @@ export default function Home() {
       settledAt: !debt.isSettled ? Date.now() : undefined,
     });
     showToast(debt.isSettled ? "به وضعیت در جریان برگشت" : "تراکنش تسویه شد", "success");
+  };
+
+  // Delete Debt Item
+  const handleDeleteDebt = async (debt: DebtItem) => {
+    const ok = await confirm({
+      title: "حذف از دفتر حساب",
+      message: `آیا از حذف حساب به مبلغ ${formatCurrency(debt.amount)} تومان اطمینان دارید؟`,
+      confirmText: "بله، حذف شود",
+      isDanger: true,
+    });
+    if (ok) {
+      await db.debts.delete(debt.id!);
+      showToast("تراکنش از دفتر حساب حذف شد", "info");
+    }
   };
 
   // If App is Locked with PIN
@@ -362,6 +399,83 @@ export default function Home() {
                 <span className="text-[11px] text-slate-400 font-medium truncate block">اشخاص و مدارک</span>
               </div>
 
+              {/* Cashflow & Balance Card (واریز و برداشت) */}
+              <div
+                onClick={() => setActiveTab("transactions")}
+                className="col-span-2 p-3.5 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40 border border-slate-800 cursor-pointer hover:border-slate-700 transition-all shadow-md group"
+              >
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <ArrowDownUp className="w-4 h-4 text-blue-400 group-hover:rotate-180 transition-transform duration-300" />
+                    گردش نقدی (واریز و برداشت)
+                  </span>
+                  <span className="text-[11px] text-blue-400 font-medium">مشاهده تراکنش‌ها ←</span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80">
+                  <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block truncate">موجودی کل کارت‌ها</span>
+                    <span className="text-xs sm:text-sm font-bold font-mono text-white mt-0.5 block truncate">
+                      {formatCurrency(totalCardsBalance)}
+                    </span>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-emerald-950/30 border border-emerald-900/30">
+                    <span className="text-[10px] text-emerald-400 block truncate">کل واریزی‌ها</span>
+                    <span className="text-xs sm:text-sm font-bold font-mono text-emerald-300 mt-0.5 block truncate">
+                      +{formatCurrency(totalIncome)}
+                    </span>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-rose-950/30 border border-rose-900/30">
+                    <span className="text-[10px] text-rose-400 block truncate">کل برداشت‌ها</span>
+                    <span className="text-xs sm:text-sm font-bold font-mono text-rose-300 mt-0.5 block truncate">
+                      -{formatCurrency(totalExpense)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Direct quick action buttons inside widget */}
+                <div className="grid grid-cols-3 gap-1.5 mt-2.5 pt-2 border-t border-slate-800/60">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTxModalType("expense");
+                      setTxModalDefaultCardId(undefined);
+                      setIsTxModalOpen(true);
+                    }}
+                    className="py-1.5 px-2 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white text-[10px] sm:text-[11px] font-bold border border-rose-500/30 flex items-center justify-center gap-1 transition-all active:scale-95"
+                  >
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                    ثبت خرج (برداشت)
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTxModalType("income");
+                      setTxModalDefaultCardId(undefined);
+                      setIsTxModalOpen(true);
+                    }}
+                    className="py-1.5 px-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[10px] sm:text-[11px] font-bold border border-emerald-500/30 flex items-center justify-center gap-1 transition-all active:scale-95"
+                  >
+                    <ArrowDownLeft className="w-3.5 h-3.5" />
+                    ثبت واریز (شارژ)
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTxModalType("transfer");
+                      setTxModalDefaultCardId(undefined);
+                      setIsTxModalOpen(true);
+                    }}
+                    className="py-1.5 px-2 rounded-xl bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white text-[10px] sm:text-[11px] font-bold border border-blue-500/30 flex items-center justify-center gap-1 transition-all active:scale-95"
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5" />
+                    انتقال کارت‌ها
+                  </button>
+                </div>
+              </div>
+
               {/* Debt & Credit Balance Bar */}
               <div
                 onClick={() => setActiveTab("debts")}
@@ -397,6 +511,30 @@ export default function Home() {
 
             {/* Quick Action Speed Pills */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold no-scrollbar">
+              <button
+                onClick={() => {
+                  setTxModalType("expense");
+                  setTxModalDefaultCardId(undefined);
+                  setIsTxModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 shrink-0 active:scale-95 transition-all"
+              >
+                <ArrowUpRight className="w-4 h-4 text-rose-400" />
+                خرج جدید (برداشت)
+              </button>
+
+              <button
+                onClick={() => {
+                  setTxModalType("income");
+                  setTxModalDefaultCardId(undefined);
+                  setIsTxModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 shrink-0 active:scale-95 transition-all"
+              >
+                <ArrowDownLeft className="w-4 h-4 text-emerald-400" />
+                شارژ حساب (واریز)
+              </button>
+
               <button
                 onClick={() => {
                   setCardToEdit(null);
@@ -618,6 +756,19 @@ export default function Home() {
               </div>
             )}
           </div>
+        )}
+
+        {/* TAB: TRANSACTIONS & CASHFLOW (واریز و برداشت) */}
+        {activeTab === "transactions" && (
+          <TransactionsView
+            onOpenNewTransaction={(type) => {
+              setTxModalType(type || "expense");
+              setTxModalDefaultCardId(undefined);
+              setIsTxModalOpen(true);
+            }}
+            cardsList={cards}
+            peopleList={people}
+          />
         )}
 
         {/* TAB 3: PEOPLE & PROFILES */}
@@ -941,69 +1092,111 @@ export default function Home() {
               <div className="space-y-3">
                 {filteredDebts.map((d) => {
                   const targetPerson = people.find((p) => p.id === d.personId);
+                  const linkedCard = cards.find((c) => c.id === d.linkedCardId);
+
                   return (
                     <div
                       key={d.id}
-                      className="p-4 rounded-3xl bg-slate-900 border border-slate-800 flex items-center justify-between"
+                      className="p-4 rounded-3xl bg-slate-900 border border-slate-800 space-y-3 hover:border-slate-700 transition-all"
                     >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`p-2.5 rounded-2xl ${
-                            d.type === "creditor"
-                              ? "bg-emerald-500/20 text-emerald-400"
-                              : "bg-rose-500/20 text-rose-400"
-                          }`}
-                        >
-                          {d.type === "creditor" ? (
-                            <ArrowDownLeft className="w-5 h-5" />
-                          ) : (
-                            <ArrowUpRight className="w-5 h-5" />
-                          )}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`p-2.5 rounded-2xl ${
+                              d.type === "creditor"
+                                ? "bg-emerald-500/20 text-emerald-400"
+                                : "bg-rose-500/20 text-rose-400"
+                            }`}
+                          >
+                            {d.type === "creditor" ? (
+                              <ArrowDownLeft className="w-5 h-5" />
+                            ) : (
+                              <ArrowUpRight className="w-5 h-5" />
+                            )}
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-white">
+                                {targetPerson?.name || "طرف حساب نامشخص"}
+                              </span>
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                  d.type === "creditor"
+                                    ? "bg-emerald-500/10 text-emerald-400"
+                                    : "bg-rose-500/10 text-rose-400"
+                                }`}
+                              >
+                                {d.type === "creditor" ? "طلبکارید" : "بدهکارید"}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">{d.description}</p>
+                            {d.dueDate && (
+                              <span className="text-[10px] text-slate-500 mt-1 block">
+                                موعد: {toPersianDigits(d.dueDate)}
+                              </span>
+                            )}
+                            {linkedCard && (
+                              <div className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-lg border border-blue-500/20 mt-1 w-fit">
+                                <CreditCard className="w-3 h-3" />
+                                <span>کارت: {linkedCard.bankName}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-white">
-                              {targetPerson?.name || "طرف حساب نامشخص"}
+                        <div className="text-left flex flex-col items-end">
+                          <span
+                            className={`text-sm font-bold font-mono ${
+                              d.type === "creditor" ? "text-emerald-400" : "text-rose-400"
+                            }`}
+                          >
+                            {formatCurrency(d.amount)} تومان
+                          </span>
+                          {d.isSettled ? (
+                            <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full font-semibold mt-1">
+                              ✓ تسویه شده
                             </span>
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded-full ${
-                                d.type === "creditor"
-                                  ? "bg-emerald-500/10 text-emerald-400"
-                                  : "bg-rose-500/10 text-rose-400"
-                              }`}
-                            >
-                              {d.type === "creditor" ? "طلبکارید" : "بدهکارید"}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-400 mt-0.5">{d.description}</p>
-                          {d.dueDate && (
-                            <span className="text-[10px] text-slate-500 mt-1 block">
-                              موعد: {toPersianDigits(d.dueDate)}
+                          ) : (
+                            <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-semibold mt-1">
+                              در جریان
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="text-left flex flex-col items-end gap-1.5">
-                        <span
-                          className={`text-sm font-bold font-mono ${
-                            d.type === "creditor" ? "text-emerald-400" : "text-rose-400"
-                          }`}
-                        >
-                          {formatCurrency(d.amount)} تومان
-                        </span>
-
+                      {/* Action buttons footer */}
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
                         <button
-                          onClick={() => handleToggleDebtSettled(d)}
-                          className={`text-[10px] px-2.5 py-1 rounded-xl font-semibold border transition-all ${
+                          onClick={() => setSelectedDebtForSettle(d)}
+                          className={`text-xs px-3 py-1.5 rounded-xl font-bold border transition-all flex items-center gap-1.5 active:scale-95 ${
                             d.isSettled
-                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                              : "bg-slate-800 text-slate-400 border-slate-700 hover:text-white"
+                              ? "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                              : "bg-emerald-600/20 text-emerald-300 border-emerald-500/30 hover:bg-emerald-600 hover:text-white"
                           }`}
                         >
-                          {d.isSettled ? "✓ تسویه شد" : "علامت تسویه"}
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          {d.isSettled ? "مدیریت تسویه" : "تسویه حساب"}
                         </button>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setDebtToEdit(d);
+                              setIsDebtModalOpen(true);
+                            }}
+                            className="text-xs px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                          >
+                            ویرایش
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDebt(d)}
+                            className="p-1 rounded-lg text-slate-500 hover:text-rose-400 transition-colors"
+                            title="حذف"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1120,7 +1313,27 @@ export default function Home() {
         onClose={() => setIsDebtModalOpen(false)}
         debtToEdit={debtToEdit}
         peopleList={people}
+        cardsList={cards}
         onSaved={() => {}}
+      />
+
+      <TransactionModal
+        isOpen={isTxModalOpen}
+        onClose={() => setIsTxModalOpen(false)}
+        defaultType={txModalType}
+        defaultCardId={txModalDefaultCardId}
+        cardsList={cards}
+        peopleList={people}
+        onSaved={() => {}}
+      />
+
+      <SettleDebtModal
+        isOpen={!!selectedDebtForSettle}
+        onClose={() => setSelectedDebtForSettle(null)}
+        debt={selectedDebtForSettle}
+        cardsList={cards}
+        peopleList={people}
+        onSettled={() => {}}
       />
 
       <BackupModal

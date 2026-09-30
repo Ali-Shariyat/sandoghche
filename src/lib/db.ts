@@ -49,12 +49,14 @@ export interface BankCard {
 export interface CardTransaction {
   id?: number;
   cardId: number; // شناسه کارت متصل
-  type: "expense" | "income"; // expense: خرج / کسر | income: واریز / افزایش
+  type: "expense" | "income"; // expense: برداشت / خرج | income: واریز / شارژ
   amount: number; // تومان
-  title: string; // بابت چه چیزی؟ مثلاً خرید سوپرمارکت، بنزین
+  title: string; // بابت چه چیزی؟ مثلاً خرید بستنی، بنزین، حقوق
   category?: "food" | "shopping" | "transport" | "bills" | "health" | "salary" | "other";
   date: number; // زمان ثبت
   note?: string;
+  personId?: number; // شناسه شخص متصل (اختیاری)
+  targetCardId?: number; // شناسه کارت مقصد در صورت انتقال بین کارت‌ها
 }
 
 export interface DocumentItem {
@@ -102,6 +104,7 @@ export interface DebtItem {
   isSettled: boolean;
   settledAt?: number;
   createdAt: number;
+  linkedCardId?: number; // شناسه کارت بانکی متصل جهت واریز/کسر خودکار
 }
 
 export interface ChequeItem {
@@ -175,7 +178,9 @@ export async function addCardTransaction(
   title: string,
   category?: CardTransaction["category"],
   note?: string,
-  date: number = Date.now()
+  date: number = Date.now(),
+  personId?: number,
+  targetCardId?: number
 ): Promise<number> {
   return await db.transaction("rw", [db.bankCards, db.cardTransactions], async () => {
     const card = await db.bankCards.get(cardId);
@@ -197,9 +202,120 @@ export async function addCardTransaction(
       category: category || "other",
       date,
       note: note?.trim(),
+      personId,
+      targetCardId,
     });
 
     return txId;
+  });
+}
+
+/**
+ * Transfers money between two user cards atomically
+ */
+export async function transferBetweenCards(
+  fromCardId: number,
+  toCardId: number,
+  amount: number,
+  title: string = "انتقال بین کارت‌ها",
+  note?: string,
+  date: number = Date.now()
+): Promise<{ expenseTxId: number; incomeTxId: number }> {
+  return await db.transaction("rw", [db.bankCards, db.cardTransactions], async () => {
+    const fromCard = await db.bankCards.get(fromCardId);
+    const toCard = await db.bankCards.get(toCardId);
+    if (!fromCard || !toCard) throw new Error("کارت مبدا یا مقصد یافت نشد");
+
+    // Deduct from source card
+    const fromBal = fromCard.balance || 0;
+    await db.bankCards.update(fromCardId, {
+      balance: fromBal - amount,
+      updatedAt: Date.now(),
+    });
+
+    // Add to target card
+    const toBal = toCard.balance || 0;
+    await db.bankCards.update(toCardId, {
+      balance: toBal + amount,
+      updatedAt: Date.now(),
+    });
+
+    const fromTitle = title ? `${title} (به کارت ${toCard.bankName})` : `انتقال به کارت ${toCard.bankName}`;
+    const toTitle = title ? `${title} (از کارت ${fromCard.bankName})` : `شارژ از کارت ${fromCard.bankName}`;
+
+    const expenseTxId = await db.cardTransactions.add({
+      cardId: fromCardId,
+      type: "expense",
+      amount,
+      title: fromTitle,
+      category: "other",
+      date,
+      note,
+      targetCardId: toCardId,
+    });
+
+    const incomeTxId = await db.cardTransactions.add({
+      cardId: toCardId,
+      type: "income",
+      amount,
+      title: toTitle,
+      category: "other",
+      date,
+      note,
+      targetCardId: fromCardId,
+    });
+
+    return { expenseTxId, incomeTxId };
+  });
+}
+
+/**
+ * Settles a debt and records corresponding deposit/withdrawal to a bank card
+ */
+export async function settleDebtWithCard(
+  debtId: number,
+  cardId: number,
+  settleAmount?: number,
+  note?: string
+): Promise<void> {
+  return await db.transaction("rw", [db.debts, db.bankCards, db.cardTransactions, db.people], async () => {
+    const debt = await db.debts.get(debtId);
+    if (!debt) throw new Error("طلب یا بدهی یافت نشد");
+
+    const amount = settleAmount && settleAmount > 0 ? settleAmount : debt.amount;
+    const person = await db.people.get(debt.personId);
+    const personName = person ? person.name : "طرف حساب";
+
+    // creditor: I lent money, now receiving it back -> Income to my card
+    // debtor: I borrowed money, now paying it back -> Expense from my card
+    const txType: "income" | "expense" = debt.type === "creditor" ? "income" : "expense";
+    const txTitle = debt.type === "creditor"
+      ? `تسویه طلب از ${personName}`
+      : `پرداخت بدهی به ${personName}`;
+
+    await addCardTransaction(
+      cardId,
+      txType,
+      amount,
+      txTitle,
+      "other",
+      note || debt.description,
+      Date.now(),
+      debt.personId
+    );
+
+    if (!settleAmount || settleAmount >= debt.amount) {
+      await db.debts.update(debtId, {
+        isSettled: true,
+        settledAt: Date.now(),
+        linkedCardId: cardId,
+      });
+    } else {
+      await db.debts.update(debtId, {
+        amount: debt.amount - settleAmount,
+        linkedCardId: cardId,
+      });
+    }
   });
 }
 

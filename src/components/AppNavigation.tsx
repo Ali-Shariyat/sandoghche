@@ -8,9 +8,17 @@ import {
   ArrowLeftRight,
   Settings,
   Home,
+  ArrowDownUp,
 } from "lucide-react";
 
-export type NavTab = "home" | "cards" | "people" | "notes" | "debts" | "settings";
+export type NavTab =
+  | "home"
+  | "cards"
+  | "transactions"
+  | "debts"
+  | "people"
+  | "notes"
+  | "settings";
 
 interface AppNavigationProps {
   activeTab: NavTab;
@@ -32,7 +40,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
   const navItems = [
     {
       id: "home" as NavTab,
-      label: "داشبورد",
+      label: "خانه",
       icon: Home,
     },
     {
@@ -42,16 +50,21 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
       badge: cardsCount,
     },
     {
+      id: "transactions" as NavTab,
+      label: "واریز/برداشت",
+      icon: ArrowDownUp,
+    },
+    {
+      id: "debts" as NavTab,
+      label: "طلب/بدهی",
+      icon: ArrowLeftRight,
+      badge: debtsCount,
+    },
+    {
       id: "people" as NavTab,
       label: "اشخاص",
       icon: Users,
       badge: peopleCount,
-    },
-    {
-      id: "debts" as NavTab,
-      label: "حساب‌ها",
-      icon: ArrowLeftRight,
-      badge: debtsCount,
     },
     {
       id: "notes" as NavTab,
@@ -68,7 +81,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800/80 pb-safe">
-      <div className="w-full max-w-xl mx-auto flex items-center justify-between py-1.5 px-1">
+      <div className="w-full max-w-xl mx-auto flex items-center justify-between py-1 px-0.5">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -84,12 +97,12 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
             >
               {/* Active top pill indicator */}
               {isActive && (
-                <span className="absolute -top-1.5 w-6 h-1 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
+                <span className="absolute -top-1 w-5 h-0.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
               )}
 
               <div className="relative">
                 <Icon
-                  className={`w-5 h-5 transition-transform ${
+                  className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${
                     isActive ? "scale-110 text-blue-400" : ""
                   }`}
                 />
@@ -100,7 +113,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
                 )}
               </div>
 
-              <span className="text-[10px] mt-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-full text-center tracking-tight">
+              <span className="text-[9px] sm:text-[10px] mt-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-full text-center tracking-tight">
                 {item.label}
               </span>
             </button>
