@@ -1,0 +1,18 @@
+{
+  "name": "حساب‌یار و گاوصندوق من",
+  "short_name": "حساب‌یار",
+  "description": "مدیریت آفلاین کارت‌های بانکی، مدارک و اسناد، اشخاص و یادداشت‌ها",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

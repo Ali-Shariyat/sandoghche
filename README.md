@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# اپلیکیشن حساب‌یار و گاوصندوق شخصی (Personal Vault)
 
-## Getting Started
+یک اپلیکیشن مدرن، جامع و **۱۰۰٪ آفلاین** ساخته شده با **Next.js 16**، **Tailwind CSS**، **Dexie.js (IndexedDB)** و **Capacitor** برای مدیریت کارت‌های بانکی، مدارک هویتی، اطلاعات اشخاص، یادداشت‌ها و طلب/بدهی با قابلیت استخراج و ورود فایل پشتیبان و خروجی بومی اندروید (**فایل APK**).
 
-First, run the development server:
+---
+
+## 🌟 ویژگی‌ها و امکانات برجسته
+
+### ۱. مدیریت کارت‌ها و حساب‌های بانکی
+- **شناسایی خودکار ۳۰+ بانک ایرانی:** با وارد کردن ۶ رقم اول کارت، بانک (ملی، ملت، تجارت، صادرات، بلوبانک، سامان، پاسارگاد، رسالت، سپه و...) و رنگ اختصاصی آن فوراً تشخیص داده می‌شود.
+- **نمایش سه‌بعدی کارت (Visual Card):** طراحی واقع‌گرایانه شبیه کارت فیزیکی با تراشه هوشمند، لوگو و انیمیشن.
+- **کپی سریع با یک کلیک:** دکمه کپی فوری برای شماره کارت ۱۶ رقمی و شماره شبا (IR...).
+- **مشخصات کامل:** شماره حساب، CVV2، تاریخ انقضا (ماه و سال) با حالت مخفی‌سازی `•••` برای امنیت.
+- **گروه‌بندی و تگ:** دسته‌بندی به شخصی، کاری، پس‌انداز، خانوادگی و برچسب‌های دلخواه (`#حقوق`، `#قسط`).
+- **اتصال کارت به اشخاص:** امکان ثبت کارت برای خودتان یا سایر افراد (مثلاً همسر، پدر، فروشنده و...).
+
+### ۲. پروفایل اشخاص و هویت (شامل پروفایل اختصاصی «من»)
+- **پروفایل کاربری من:** صفحه اختصاصی برای نگهداری مدارک، کارت‌ها و اطلاعات هویتی کاربر اصلی.
+- **دفترچه اشخاص:** ثبت نام، نسبت، شماره تماس، کد ملی ۱۰ رقمی (با اعتبارسنجی الگوریتم رسمی)، تاریخ تولد شمسی، شغل و آدرس.
+- **آلبوم اسناد و عکس‌ها:** ذخیره مستقیم عکس‌های مدارک (کارت ملی رو و پشت، شناسنامه، گواهینامه، گذرنامه، قراردادها، رسیدها، چک‌ها) در حافظه آفلاین گوشی با فشرده‌سازی خودکار جهت جلوگیری از افت سرعت.
+- **نمایشگر تمام‌صفحه اسناد:** بزرگ‌نمایی تصویر، دانلود و اشتراک‌گذاری.
+
+### ۳. یادداشت‌ها و اسناد متنی
+- ثبت یادداشت‌ها با دسته‌بندی (شخصی، کاری، مالی، مهم، ایده‌ها).
+- امکان الصاق و سنجاق کردن (Pin) یادداشت‌های حساس در بالای لیست.
+- اتصال مستقیم یادداشت به یک شخص یا یک کارت بانکی خاص.
+
+### ۴. دفتر حساب، طلب و بدهی
+- ثبت مبالغ قرض‌داده‌شده (طلبکارم) یا قرض‌گرفته‌شده (بدهکارم).
+- محاسبه خودکار تراز کل و خالص بدهی/طلب برای هر شخص.
+- علامت‌گذاری وضعیت تسویه یا در جریان با تاریخ شمسی سررسید.
+
+### ۵. موتور خروجی و بازیابی پشتیبان (Export & Import)
+- **خروجی گرفتن آفلاین (Export):** تولید فایل یکپارچه `Hesabyar_Backup_YYYY-MM-DD.json` شامل تمام کارت‌ها، اشخاص، عکس‌های مدارک و یادداشت‌ها.
+- **بازیابی مجدد (Import):** بازخوانی سریع فایل پشتیبان با پیش‌نمایش آمار و امکان انتخاب «جایگزینی کامل» یا «ادغام با داده‌های فعلی».
+- **ریست ایمن پایگاه‌داده.**
+
+### ۶. امنیت برنامه (App Lock)
+- قفل ورود با رمز عبور ۴ رقمی (PIN) با کیپد لمسی اختصاصی.
+
+---
+
+## 📱 راهنمای دریافت و ساخت فایل APK اندروید
+
+### روش اول: تولید خودکار و ابری با GitHub Actions (سریع‌ترین و بدون نیاز به نصب هیچ برنامه‌ای)
+1. این پروژه را روی مخزن گیت‌هاب (GitHub) خود قرار دهید (`git push`).
+2. فایل گردش‌کار آماده در مسیر `.github/workflows/build-apk.yml` به طور خودکار اجرا می‌شود.
+3. در تب **Actions** گیت‌هاب، روی آخرین اجرا کلیک کرده و فایل **`Hesabyar-Personal-Vault-APK`** آماده نصب را مستقیماً دانلود کنید!
+
+### روش دوم: ساخت محلی با Android Studio
+```bash
+# ۱. بیلد پروژه و انتقال به پوشه اندروید
+npm run build:mobile
+
+# ۲. باز کردن در Android Studio
+npx cap open android
+```
+در اندروید استودیو از منوی **Build > Build Bundle(s) / APK(s) > Build APK(s)** خروجی فایل `.apk` را دریافت کنید.
+
+### روش سوم: بیلد مستقیم با خط فرمان (در صورت وجود Java و Android SDK)
+```bash
+chmod +x build-apk-local.sh
+./build-apk-local.sh
+```
+فایل APK در مسیر زیر ساخته خواهد شد:
+`android/app/build/outputs/apk/debug/app-debug.apk`
+
+---
+
+## 💻 اجرای آزمایشی روی مرورگر و حالت توسعه
 
 ```bash
+# نصب وابستگی‌ها (در صورت نیاز مجدد)
+npm install
+
+# اجرای سرور توسعه محلی
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+سپس مرورگر را روی [http://localhost:3000](http://localhost:3000) باز کنید.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛠 ساختار و تکنولوژی‌ها
+- **فریم‌ورک:** Next.js 16 (App Router با خروجی Static Export)
+- **استایلینگ و رابط کاربری:** Tailwind CSS + فونت زیبای وزیزمتن (Vazirmatn) + آیکون‌های مدرن Lucide
+- **پایگاه‌داده آفلاین:** Dexie.js (مبتنی بر IndexedDB بومی مرورگر و وب‌ویو)
+- **تقویم و تاریخ:** Jalali-moment (شمسی ۱۰۰٪)
+- **تبدیل به APK موبایل:** Capacitor 8
